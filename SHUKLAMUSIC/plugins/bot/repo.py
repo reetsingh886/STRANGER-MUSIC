@@ -13,11 +13,18 @@
 # -----------------------------------------------
  from pyrogram import filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
-from SHUKLAMUSIC import app   # ya ShashankMusic / ShrutiMusic jo tera ho
+from SHUKLAMUSIC import app
 
 REPO_VIDEO = "https://files.catbox.moe/aoafwn.mp4"
 
-@app.on_message(filters.command(["repo", "source"]))
+# ❌ OLD REPO HANDLER KO BLOCK KAR DIYA
+@app.on_message(filters.command(["repo", "source"]), group=-10)
+async def stop_old_repo(_, message):
+    return
+
+
+# ✅ SIRF YE WALA CHALEGA
+@app.on_message(filters.command(["repo", "source"]), group=0)
 async def send_repo(_, message: Message):
     await message.reply_video(
         video=REPO_VIDEO,
@@ -38,4 +45,4 @@ async def send_repo(_, message: Message):
         ),
         supports_streaming=True,
         has_spoiler=True,
-    )       
+    )
