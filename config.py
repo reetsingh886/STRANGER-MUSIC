@@ -26,7 +26,7 @@ API_HASH = getenv("API_HASH")
 BOT_TOKEN = getenv("BOT_TOKEN")
 
 # Bot and owner info
-OWNER_USERNAME = getenv("OWNER_USERNAME", "SHIVANSHDEVS")
+OWNER_USERNAME = getenv("OWNER_USERNAME", "iamthakur007")
 BOT_USERNAME = getenv("BOT_USERNAME", "SapnaMusicRobot")
 BOT_NAME = getenv("BOT_NAME", "SAPNA")
 ASSUSERNAME = getenv("ASSUSERNAME", "KHWAAISH_HOON")
@@ -50,8 +50,8 @@ UPSTREAM_BRANCH = getenv("UPSTREAM_BRANCH", "main")
 GIT_TOKEN = getenv("GIT_TOKEN", None)
 
 # Support
-SUPPORT_CHANNEL = getenv("SUPPORT_CHANNEL", "https://t.me/ITSZSHUKLA")
-SUPPORT_CHAT = getenv("SUPPORT_CHAT", "https://t.me/MASTIWITHFRIENDSXD")
+SUPPORT_CHANNEL = getenv("SUPPORT_CHANNEL", "https://t.me/BOTxBOOSTER")
+SUPPORT_CHAT = getenv("SUPPORT_CHAT", "https://t.me/BotsSupport_36")
 
 # Assistant settings
 AUTO_LEAVING_ASSISTANT = getenv("AUTO_LEAVING_ASSISTANT", "True")
