@@ -17,14 +17,14 @@ from SHUKLAMUSIC import app
 
 REPO_VIDEO = "https://files.catbox.moe/aoafwn.mp4"
 
-# ❌ OLD REPO HANDLER KO BLOCK KAR DIYA
-@app.on_message(filters.command(["repo", "source"]), group=-10)
-async def stop_old_repo(_, message):
-    return
+# 💣 SAB OLD HANDLERS KO BLOCK KAR DIYA
+@app.on_message(filters.command(["repo", "source"]), group=-999)
+async def kill_all_repo(client, message: Message):
+    await message.stop_propagation()
 
 
 # ✅ SIRF YE WALA CHALEGA
-@app.on_message(filters.command(["repo", "source"]), group=0)
+@app.on_message(filters.command(["repo", "source"]), group=1)
 async def send_repo(_, message: Message):
     await message.reply_video(
         video=REPO_VIDEO,
