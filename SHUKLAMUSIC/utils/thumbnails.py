@@ -11,136 +11,140 @@
 #
 # ❤️ Made with dedication and love by ItzShukla
 # -----------------------------------------------
-import os
-import re
-import aiofiles
-import aiohttp
+
+    import os, aiofiles, aiohttp
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
 from py_yt import VideosSearch
 from config import YOUTUBE_IMG_URL
+from ShashankMusic import app
 
-# Constants
 CACHE_DIR = "cache"
 os.makedirs(CACHE_DIR, exist_ok=True)
 
-PANEL_W, PANEL_H = 763, 545
-PANEL_X = (1280 - PANEL_W) // 2
-PANEL_Y = 88
-TRANSPARENCY = 170
-INNER_OFFSET = 36
-
-THUMB_W, THUMB_H = 542, 273
-THUMB_X = PANEL_X + (PANEL_W - THUMB_W) // 2
-THUMB_Y = PANEL_Y + INNER_OFFSET
-
-TITLE_X = 377
-META_X = 377
-TITLE_Y = THUMB_Y + THUMB_H + 10
-META_Y = TITLE_Y + 45
-
-BAR_X, BAR_Y = 388, META_Y + 45
-BAR_RED_LEN = 280
-BAR_TOTAL_LEN = 480
-
-ICONS_W, ICONS_H = 415, 45
-ICONS_X = PANEL_X + (PANEL_W - ICONS_W) // 2
-ICONS_Y = BAR_Y + 48
-
-MAX_TITLE_WIDTH = 580
-
-def trim_to_width(text: str, font: ImageFont.FreeTypeFont, max_w: int) -> str:
-    ellipsis = "…"
-    if font.getlength(text) <= max_w:
+def trim_to_width(text: str, font: ImageFont.FreeTypeFont, max_width: int) -> str:
+    ellipsis = "..."
+    if font.getlength(text) <= max_width:
         return text
-    for i in range(len(text) - 1, 0, -1):
-        if font.getlength(text[:i] + ellipsis) <= max_w:
-            return text[:i] + ellipsis
+    for i in range(len(text), 0, -1):
+        new = text[:i] + ellipsis
+        if font.getlength(new) <= max_width:
+            return new
     return ellipsis
 
-async def get_thumb(videoid: str) -> str:
-    cache_path = os.path.join(CACHE_DIR, f"{videoid}_v4.png")
+async def get_thumb(videoid: str, player_username: str = None) -> str:
+    if player_username is None:
+        player_username = app.username
+
+    cache_path = os.path.join(CACHE_DIR, f"{videoid}_shashank.png")
     if os.path.exists(cache_path):
         return cache_path
 
-    # YouTube video data fetch
-    results = VideosSearch(f"https://www.youtube.com/watch?v={videoid}", limit=1)
     try:
-        results_data = await results.next()
-        result_items = results_data.get("result", [])
-        if not result_items:
-            raise ValueError("No results found.")
-        data = result_items[0]
-        title = re.sub(r"\W+", " ", data.get("title", "Unsupported Title")).title()
+        results = VideosSearch(f"https://www.youtube.com/watch?v={videoid}", limit=1)
+        search_result = await results.next()
+        data = search_result.get("result", [])[0]
+
+        title = data.get("title", "Unknown Title")
+        artist = data.get("channel", {}).get("name", "Unknown Artist")
+        duration = data.get("duration", "00:00")
+        views = data.get("viewCount", {}).get("short", "0 views")
         thumbnail = data.get("thumbnails", [{}])[0].get("url", YOUTUBE_IMG_URL)
-        duration = data.get("duration")
-        views = data.get("viewCount", {}).get("short", "Unknown Views")
     except Exception:
-        title, thumbnail, duration, views = "Unsupported Title", YOUTUBE_IMG_URL, None, "Unknown Views"
+        title = "Unknown Title"
+        artist = "Unknown Artist"
+        duration = "05:00"
+        views = "1M views"
+        thumbnail = YOUTUBE_IMG_URL
 
-    is_live = not duration or str(duration).strip().lower() in {"", "live", "live now"}
-    duration_text = "Live" if is_live else duration or "Unknown Mins"
-
-    # Download thumbnail
-    thumb_path = os.path.join(CACHE_DIR, f"thumb{videoid}.png")
+    thumb_path = os.path.join(CACHE_DIR, f"raw_{videoid}.jpg")
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(thumbnail) as resp:
-                if resp.status == 200:
+        async with aiohttp.ClientSession() as s:
+            async with s.get(thumbnail) as r:
+                if r.status == 200:
                     async with aiofiles.open(thumb_path, "wb") as f:
-                        await f.write(await resp.read())
-    except Exception:
+                        await f.write(await r.read())
+    except:
         return YOUTUBE_IMG_URL
 
-    # Create base image
-    base = Image.open(thumb_path).resize((1280, 720)).convert("RGBA")
-    bg = ImageEnhance.Brightness(base.filter(ImageFilter.BoxBlur(10))).enhance(0.6)
+    W, H = 1280, 720
+    img = Image.open(thumb_path).convert("RGBA")
+    bg = img.resize((W, H))
+    bg = bg.filter(ImageFilter.GaussianBlur(radius=40))
+    enhancer = ImageEnhance.Brightness(bg)
+    bg = enhancer.enhance(0.4) # Darken background
 
-    # Frosted glass panel
-    panel_area = bg.crop((PANEL_X, PANEL_Y, PANEL_X + PANEL_W, PANEL_Y + PANEL_H))
-    overlay = Image.new("RGBA", (PANEL_W, PANEL_H), (255, 255, 255, TRANSPARENCY))
-    frosted = Image.alpha_composite(panel_area, overlay)
-    mask = Image.new("L", (PANEL_W, PANEL_H), 0)
-    ImageDraw.Draw(mask).rounded_rectangle((0, 0, PANEL_W, PANEL_H), 50, fill=255)
-    bg.paste(frosted, (PANEL_X, PANEL_Y), mask)
-
-    # Draw details
     draw = ImageDraw.Draw(bg)
+
     try:
-        title_font = ImageFont.truetype("SHUKLAMUSIC/assets/assets/font2.ttf", 32)
-        regular_font = ImageFont.truetype("SHUKLAMUSIC/assets/assets/font.ttf", 18)
-    except OSError:
-        title_font = regular_font = ImageFont.load_default()
+        font_bold = "ShashankMusic/assets/font2.ttf"
+        font_med = "ShashankMusic/assets/font.ttf"
+        title_font = ImageFont.truetype(font_bold, 60)
+        artist_font = ImageFont.truetype(font_med, 40)
+        time_font = ImageFont.truetype(font_med, 32)
+    except:
+        title_font = artist_font = time_font = ImageFont.load_default()
 
-    thumb = base.resize((THUMB_W, THUMB_H))
-    tmask = Image.new("L", thumb.size, 0)
-    ImageDraw.Draw(tmask).rounded_rectangle((0, 0, THUMB_W, THUMB_H), 20, fill=255)
-    bg.paste(thumb, (THUMB_X, THUMB_Y), tmask)
+    frame_w, frame_h = 450, 450
+    frame_x, frame_y = 100, (H - frame_h) // 2 
 
-    draw.text((TITLE_X, TITLE_Y), trim_to_width(title, title_font, MAX_TITLE_WIDTH), fill="black", font=title_font)
-    draw.text((META_X, META_Y), f"YouTube | {views}", fill="black", font=regular_font)
+    album = img.resize((frame_w, frame_h), Image.LANCZOS)
+    
+    mask = Image.new("L", (frame_w, frame_h), 0)
+    ImageDraw.Draw(mask).rounded_rectangle((0, 0, frame_w, frame_h), radius=40, fill=255)
+    
+    glow = Image.new("RGBA", (frame_w + 40, frame_h + 40), (0, 0, 0, 0))
+    ImageDraw.Draw(glow).rounded_rectangle((20, 20, frame_w + 20, frame_h + 20), radius=40, fill=(0, 0, 0, 150))
+    glow = glow.filter(ImageFilter.GaussianBlur(radius=15))
+    bg.paste(glow, (frame_x - 20, frame_y - 20), glow)
 
-    # Progress bar
-    draw.line([(BAR_X, BAR_Y), (BAR_X + BAR_RED_LEN, BAR_Y)], fill="red", width=6)
-    draw.line([(BAR_X + BAR_RED_LEN, BAR_Y), (BAR_X + BAR_TOTAL_LEN, BAR_Y)], fill="gray", width=5)
-    draw.ellipse([(BAR_X + BAR_RED_LEN - 7, BAR_Y - 7), (BAR_X + BAR_RED_LEN + 7, BAR_Y + 7)], fill="red")
+    bg.paste(album, (frame_x, frame_y), mask)
 
-    draw.text((BAR_X, BAR_Y + 15), "00:00", fill="black", font=regular_font)
-    end_text = "Live" if is_live else duration_text
-    draw.text((BAR_X + BAR_TOTAL_LEN - (90 if is_live else 60), BAR_Y + 15), end_text, fill="red" if is_live else "black", font=regular_font)
+    draw.rounded_rectangle(
+        (frame_x, frame_y, frame_x + frame_w, frame_y + frame_h), 
+        radius=40, 
+        outline=(255, 255, 255, 80), 
+        width=6
+    )
 
-    # Icons
-    icons_path = "SHUKLAMUSIC/assets/assets/play_icons.png"
-    if os.path.isfile(icons_path):
-        ic = Image.open(icons_path).resize((ICONS_W, ICONS_H)).convert("RGBA")
-        r, g, b, a = ic.split()
-        black_ic = Image.merge("RGBA", (r.point(lambda *_: 0), g.point(lambda *_: 0), b.point(lambda *_: 0), a))
-        bg.paste(black_ic, (ICONS_X, ICONS_Y), black_ic)
+    text_x = 620
+    glass_rect = [text_x - 40, frame_y, W - 60, frame_y + frame_h]
+    overlay = Image.new('RGBA', (W, H), (0,0,0,0))
+    d_overlay = ImageDraw.Draw(overlay)
+    d_overlay.rounded_rectangle(glass_rect, radius=30, fill=(255, 255, 255, 25)) # Very faint white
+    bg.alpha_composite(overlay)
 
-    # Cleanup and save
+    clean_title = trim_to_width(title, title_font, 600)
+    draw.text((text_x, frame_y + 40), clean_title, font=title_font, fill=(255, 255, 255, 255))
+    
+    clean_artist = trim_to_width(f"By {artist}", artist_font, 550)
+    draw.text((text_x, frame_y + 120), clean_artist, font=artist_font, fill=(200, 200, 200, 230))
+
+    draw.text((text_x, frame_y + 190), f"Views: {views}", font=time_font, fill=(180, 180, 180, 200))
+
+    bar_width = 500
+    bar_height = 8
+    bar_x_pos = text_x
+    bar_y_pos = frame_y + 320
+
+    draw.rounded_rectangle((bar_x_pos, bar_y_pos, bar_x_pos + bar_width, bar_y_pos + bar_height), radius=4, fill=(255, 255, 255, 50))
+    
+    progress = 0.4
+    draw.rounded_rectangle((bar_x_pos, bar_y_pos, bar_x_pos + (bar_width * progress), bar_y_pos + bar_height), radius=4, fill=(0, 200, 255, 255))
+    
+    circle_r = 10
+    draw.ellipse((bar_x_pos + (bar_width * progress) - circle_r, bar_y_pos + (bar_height/2) - circle_r, 
+                  bar_x_pos + (bar_width * progress) + circle_r, bar_y_pos + (bar_height/2) + circle_r), 
+                  fill=(255, 255, 255, 255))
+
+    draw.text((bar_x_pos, bar_y_pos + 25), "00:25", font=time_font, fill=(255, 255, 255, 200))
+    draw.text((bar_x_pos + bar_width - 80, bar_y_pos + 25), duration, font=time_font, fill=(255, 255, 255, 200))
+
+    bg = bg.convert("RGB")
+    bg.save(cache_path, quality=95)
+    
     try:
         os.remove(thumb_path)
-    except OSError:
+    except:
         pass
 
-    bg.save(cache_path)
     return cache_path
